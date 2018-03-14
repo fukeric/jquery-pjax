@@ -284,7 +284,6 @@ function pjax(options) {
       url: container.url,
       title: container.title,
       container: options.container,
-      fragment: options.fragment,
       timeout: options.timeout
     }
 
@@ -347,7 +346,6 @@ function pjax(options) {
       url: window.location.href,
       title: document.title,
       container: options.container,
-      fragment: options.fragment,
       timeout: options.timeout
     }
     window.history.replaceState(pjax.state, document.title)
@@ -468,7 +466,6 @@ function onPjaxPopstate(event) {
         url: state.url,
         container: containerSelector,
         push: false,
-        fragment: state.fragment,
         timeout: state.timeout,
         scrollTo: false
       }
@@ -650,7 +647,6 @@ function parseHTML(html) {
 //
 // 1. Extracts X-PJAX-URL header if set
 // 2. Extracts inline <title> tags
-// 3. Builds response Element and extracts fragment if set
 //
 // data    - String response data
 // xhr     - XHR response
@@ -658,51 +654,24 @@ function parseHTML(html) {
 //
 // Returns an Object with url, title, and contents keys.
 function extractContainer(data, xhr, options) {
-  var obj = {}, fullDocument = /<html/i.test(data)
+  var obj = {}
 
   // Prefer X-PJAX-URL header if it was set, otherwise fallback to
   // using the original requested url.
   var serverUrl = xhr.getResponseHeader('X-PJAX-URL')
   obj.url = serverUrl ? stripInternalParams(parseURL(serverUrl)) : options.requestUrl
-
-  var $head, $body
-  // Attempt to parse response html into elements
-  if (fullDocument) {
-    $body = $(parseHTML(data.match(/<body[^>]*>([\s\S.]*)<\/body>/i)[0]))
-    var head = data.match(/<head[^>]*>([\s\S.]*)<\/head>/i)
-    $head = head != null ? $(parseHTML(head[0])) : $body
-  } else {
-    $head = $body = $(parseHTML(data))
-  }
+    
+  var contents = $(parseHTML(data))
 
   // If response data is empty, return fast
-  if ($body.length === 0)
-    return obj
+  if (contents.length === 0)
+      return obj
 
-  // If there's a <title> tag in the header, use it as
+  obj.contents = contents
+
+    // If there's a <title> tag in the header, use it as
   // the page's title.
   obj.title = findAll($head, 'title').last().text()
-
-  if (options.fragment) {
-    var $fragment = $body
-    // If they specified a fragment, look for it in the response
-    // and pull it out.
-    if (options.fragment !== 'body') {
-      $fragment = findAll($fragment, options.fragment).first()
-    }
-
-    if ($fragment.length) {
-      obj.contents = options.fragment === 'body' ? $fragment : $fragment.contents()
-
-      // If there's no title, look for data-title and title attributes
-      // on the fragment
-      if (!obj.title)
-        obj.title = $fragment.attr('title') || $fragment.data('title')
-    }
-
-  } else if (!fullDocument) {
-    obj.contents = $body
-  }
 
   // Clean up any <title> tags
   if (obj.contents) {
