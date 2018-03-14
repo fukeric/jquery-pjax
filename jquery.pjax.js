@@ -660,7 +660,11 @@ function extractContainer(data, xhr, options) {
   // using the original requested url.
   var serverUrl = xhr.getResponseHeader('X-PJAX-URL')
   obj.url = serverUrl ? stripInternalParams(parseURL(serverUrl)) : options.requestUrl
-    
+
+  var responseHeaders = xhr.getAllResponseHeaders();
+  if (/^X-PJAX: false/im.test(responseHeaders))
+      return obj;
+
   var contents = $(parseHTML(data))
 
   // If response data is empty, return fast
