@@ -320,7 +320,7 @@ function pjax(options) {
       autofocusEl.focus()
     }
 
-    executeScriptTags(container.scripts)
+    executeScriptTags(container.scripts, context)
 
     var scrollTo = options.scrollTo
 
@@ -713,7 +713,7 @@ function extractContainer(data, xhr, options) {
     obj.contents.find('title').remove()
 
     // Gather all script[src] elements
-    obj.scripts = findAll(obj.contents, 'script[src]').remove()
+    obj.scripts = findAll(obj.contents, 'script').remove()
     obj.contents = obj.contents.not(obj.scripts)
   }
 
@@ -723,32 +723,58 @@ function extractContainer(data, xhr, options) {
   return obj
 }
 
-// Load an execute scripts using standard script request.
-//
-// Avoids jQuery's traditional $.getScript which does a XHR request and
-// globalEval.
-//
-// scripts - jQuery object of script Elements
-//
-// Returns nothing.
-function executeScriptTags(scripts) {
+function executeScriptTags(scripts, context) {
   if (!scripts) return
 
-  var existingScripts = $('script[src]')
+  var inlineScripts = $([]);
 
-  scripts.each(function() {
+  var loadedScripts = $('script[src]');
+
+  var run = function (next) {
     var src = this.src
-    var matchedScripts = existingScripts.filter(function() {
+    var type = this.type
+
+    var matchedScripts = loadedScripts.filter(function () {
       return this.src === src
     })
-    if (matchedScripts.length) return
+
+    if (matchedScripts.length) {
+      next()
+      return
+    }
 
     var script = document.createElement('script')
-    var type = $(this).attr('type')
+
     if (type) script.type = type
-    script.src = $(this).attr('src')
-    document.head.appendChild(script)
-  })
+
+    if (src) { // external script
+      script.src = src
+      script.onload = next
+      script.onerror = next
+
+      document.head.appendChild(script)
+    } else { // inline script
+      inlineScripts.push(this);
+      next()
+    }
+  }
+
+  var index = 0;
+
+  var next = function () {
+    if (index >= scripts.length) {
+      inlineScripts.each(function () {
+        context.append(this)
+      })
+      return
+    }
+
+    var script = scripts[index++]
+
+    run.call(script, next)
+  }
+
+  next()
 }
 
 // Internal: History DOM caching class.
