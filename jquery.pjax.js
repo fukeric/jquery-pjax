@@ -662,7 +662,8 @@ function extractContainer(data, xhr, options) {
   obj.url = serverUrl ? stripInternalParams(parseURL(serverUrl)) : options.requestUrl
 
   var responseHeaders = xhr.getAllResponseHeaders();
-  if (/^X-PJAX: false/im.test(responseHeaders))
+  if (/^X-PJAX: false/im.test(responseHeaders)
+  || !/^Content-Type: text\/html/im.test(responseHeaders))
       return obj;
 
   var contents = $(parseHTML(data))
